@@ -1,6 +1,7 @@
 import {
   FREE_SHIPPING_MIN_STUFFS,
   SHIPPING_PRICE,
+  STORAGE,
   TAX_RATE,
 } from "../constants/settings.js";
 import Order from "../models/orderModel.js";
@@ -75,6 +76,7 @@ const createOrder = async (req, res) => {
         ...itemFromClient,
         product: itemFromClient._id,
         price: matchingItemFromDB.price,
+        image: matchingItemFromDB.image,
         _id: undefined,
       };
     });
@@ -101,7 +103,16 @@ const createOrder = async (req, res) => {
 
 const getAllOrders = async (req, res) => {
   try {
-    const orders = await Order.find({}).populate("user", "id username");
+    const orders = await Order.find({})
+      .populate("user", "id username")
+      .then((data) => {
+        return data.map((item) => {
+          item.orderItems.forEach((orderItem) => {
+            if (orderItem.image) orderItem.image = STORAGE + orderItem.image;
+          });
+          return item;
+        });
+      });
     res.json(orders);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -110,7 +121,14 @@ const getAllOrders = async (req, res) => {
 
 const getUserOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user._id });
+    const orders = await Order.find({ user: req.user._id }).then((data) => {
+      return data.map((item) => {
+        item.orderItems.forEach((orderItem) => {
+          if (orderItem.image) orderItem.image = STORAGE + orderItem.image;
+        });
+        return item;
+      });
+    });
     res.json(orders);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -175,7 +193,6 @@ const findOrderById = async (req, res) => {
 
 const markOrderAsPaid = async (req, res) => {
   try {
-
     const order = await Order.findById(req.params.id);
     if (order) {
       order.isPaid = true;
